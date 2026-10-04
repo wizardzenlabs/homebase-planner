@@ -51,6 +51,12 @@ button{ font-family: inherit; }
 .empty-state{ text-align:center; padding: 60px 20px; color: var(--ink-soft); }
 .empty-state h3{ margin-bottom:6px; }
 
+.show-more-btn{
+  display:block; width:100%; margin: 8px 0 4px; background:none; border:1px dashed var(--line);
+  color: var(--ink-soft); border-radius:12px; padding:10px; font-size:0.82rem; font-weight:600; cursor:pointer;
+}
+.show-more-btn:hover{ border-color: var(--ink); color: var(--ink); }
+
 .section-label{
   font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em;
   color: var(--ink-soft); margin: 18px 2px 8px;

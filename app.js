@@ -59,6 +59,8 @@ let bannerMsg = "";
 let activeTab = CATEGORIES[0].id;
 let modalState = null; // { mode: 'add'|'edit', draft: {...} }
 let expandedLinks = new Set();
+let expandedDoneTabs = new Set();
+const DONE_RECENT_DAYS = 7;
 
 function todayISO() {
   const d = new Date();
@@ -103,6 +105,20 @@ function isUrgent(item) {
 
 function priorityWord(p) { return p >= 5 ? "High" : p <= 1 ? "Low" : "Medium"; }
 
+function daysSince(iso) {
+  if (!iso) return Infinity;
+  return (Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24);
+}
+
+function splitFinished(finished) {
+  // Keep every completed item in the database -- just hide anything older
+  // than a week behind "show more" so the Done list doesn't grow forever.
+  return {
+    recent: finished.filter(i => daysSince(i.completed_at) <= DONE_RECENT_DAYS),
+    older: finished.filter(i => daysSince(i.completed_at) > DONE_RECENT_DAYS),
+  };
+}
+
 function dateCompare(a, b) {
   if (!a && !b) return 0;
   if (!a) return 1;
@@ -142,11 +158,11 @@ function itemsForTab(tabId) {
     const nonRoutine = items.filter(i => !isRoutine(i));
     const active = sortActive(nonRoutine.filter(i => i.status === "active"));
     const finished = nonRoutine.filter(i => i.status !== "active").sort((a, b) => (b.completed_at || "").localeCompare(a.completed_at || ""));
-    return { routines, active, finished };
+    return { routines, active, ...splitFinished(finished) };
   }
   const active = sortActive(items.filter(i => i.status === "active"));
   const finished = items.filter(i => i.status !== "active").sort((a, b) => (b.completed_at || "").localeCompare(a.completed_at || ""));
-  return { routines: [], active, finished };
+  return { routines: [], active, ...splitFinished(finished) };
 }
 
 function completeLabelFor(item) {
@@ -308,11 +324,13 @@ function renderList() {
   const wrap = document.getElementById("listWrap");
   if (loading) { wrap.innerHTML = `<div class="empty-state">loading…</div>`; return; }
 
-  const { routines, active, finished } = itemsForTab(activeTab);
-  if (routines.length === 0 && active.length === 0 && finished.length === 0) {
+  const { routines, active, recent, older } = itemsForTab(activeTab);
+  if (routines.length === 0 && active.length === 0 && recent.length === 0 && older.length === 0) {
     wrap.innerHTML = `<div class="empty-state"><h3>Nothing here yet</h3><p>Tap + Add to create your first one.</p></div>`;
     return;
   }
+
+  const doneExpanded = expandedDoneTabs.has(activeTab);
 
   let html = "";
   if (routines.length) {
@@ -320,8 +338,13 @@ function renderList() {
     html += `<div class="section-label">To-dos</div>`;
   }
   html += `<div class="list">${active.map(renderCard).join("")}</div>`;
-  if (finished.length) {
-    html += `<div class="section-label">Done</div><div class="list">${finished.map(renderCard).join("")}</div>`;
+  if (recent.length || older.length) {
+    html += `<div class="section-label">Done</div><div class="list">${recent.map(renderCard).join("")}</div>`;
+    if (older.length) {
+      html += doneExpanded
+        ? `<div class="list">${older.map(renderCard).join("")}</div><button class="show-more-btn" id="doneToggle">Show less</button>`
+        : `<button class="show-more-btn" id="doneToggle">Show ${older.length} older done item${older.length === 1 ? "" : "s"}</button>`;
+    }
   }
   wrap.innerHTML = html;
 
@@ -335,6 +358,11 @@ function renderList() {
     expandedLinks.has(id) ? expandedLinks.delete(id) : expandedLinks.add(id);
     render();
   }));
+  const doneToggle = document.getElementById("doneToggle");
+  if (doneToggle) doneToggle.addEventListener("click", () => {
+    expandedDoneTabs.has(activeTab) ? expandedDoneTabs.delete(activeTab) : expandedDoneTabs.add(activeTab);
+    render();
+  });
 }
 
 function findItem(id) { return state.items.find(i => i.id === id); }
