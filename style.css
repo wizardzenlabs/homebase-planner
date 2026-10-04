@@ -1,8 +1,8 @@
 :root{
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  --pink: #f6dbe4;
-  --pink-well: #f0c9d7;
+  --pink: #eec0d3;
+  --pink-well: #e6adc5;
   --line: rgba(42,42,42,0.14);
   --ink: #2a2a2a;
   --ink-soft: #6b6b6b;
@@ -22,7 +22,7 @@ html, body{
   font-family: "Work Sans", ui-sans-serif, system-ui, sans-serif;
 }
 body{ padding-inline: 16px; min-height: 100%; }
-h1,h2,h3,.brand{ font-family: "Fraunces", ui-serif, Georgia, serif; }
+h1,h2,h3,.brand{ font-family: "Playfair Display", ui-serif, Georgia, serif; }
 h1,h2,h3{ text-wrap: balance; margin:0; }
 button{ font-family: inherit; }
 #app{ max-width: 760px; margin: 0 auto; }
@@ -67,7 +67,7 @@ button{ font-family: inherit; }
   background: var(--white); border:1px solid var(--line); border-radius:16px;
   padding:14px 16px; display:flex; flex-direction:column; gap:8px;
 }
-.card.done{ opacity:0.6; }
+.card.done{ opacity:0.53; }
 .card-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
 .card-title-row{ display:flex; align-items:center; gap:7px; min-width:0; }
 .card-title-row h3{ font-size:1.05rem; overflow-wrap:anywhere; }

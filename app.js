@@ -311,14 +311,14 @@ function render() {
   const app = document.getElementById("app");
   app.innerHTML = `
     <div class="topbar">
-      <div class="brand">Homebase</div>
+      <div class="brand">Calm Mind App</div>
       <button class="add-btn" id="addBtn">+ Add</button>
     </div>
     ${bannerMsg ? `<div class="banner">${escapeHtml(bannerMsg)}</div>` : ""}
     <div class="tabs">${CATEGORIES.map(c => `<button class="tab ${c.id === activeTab ? "active" : ""}" data-tab="${c.id}">${c.label}</button>`).join("")}</div>
     <div id="listWrap"></div>
     <button class="fab" id="fab">+</button>
-    <footer class="credit">homebase · just for you</footer>
+    <footer class="credit">Dasha's Daily Organizer</footer>
     ${modalState ? renderModal() : ""}
   `;
 

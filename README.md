@@ -1,6 +1,6 @@
-# Homebase
+# Calm Mind App
 
-A personal planner with five tabs — Bills, House Projects, Personal Tasks, Travel Plans, Random Thoughts. Things due soon or overdue (within 3 days) are flagged urgent. No login — it's built for one person.
+Dasha's Daily Organizer — a personal planner with five tabs — Bills, House Projects, Personal Tasks, Travel Plans, Random Thoughts. Things due soon or overdue (within 3 days) are flagged urgent. No login — it's built for one person.
 
 ## Stack
 
@@ -15,6 +15,8 @@ This app is built to be handed off cleanly:
 
 To fully hand this off to someone else: they create their own Supabase account, you transfer the project to them, then update `SUPABASE_URL` and `SUPABASE_KEY` in `app.js` if those values change (they usually don't on transfer — double check after). Once confirmed working, remove yourself as a project collaborator on their end.
 
-## Daily digest email (not yet set up)
+## Daily digest email
 
-A scheduled check for urgent/due items, emailed once a day, needs a Supabase Edge Function + `pg_cron` — see the project chat history for the plan (Gmail SMTP + app password, no third-party email service required).
+Sent once a day (9am ET) via a Supabase Edge Function (`supabase/functions/daily-digest`) triggered by `pg_cron` + `pg_net`. Sends through Gmail SMTP using an app password — no third-party email service. Credentials live in Supabase Vault, never in this repo; see `get_digest_secrets()` in `supabase/schema.sql`.
+
+The 9am time is pinned to a fixed UTC hour, so it drifts an hour across daylight saving twice a year — a one-line SQL update (`select cron.alter_job(...)`) fixes it.
