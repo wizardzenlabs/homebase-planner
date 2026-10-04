@@ -111,9 +111,9 @@ function dateCompare(a, b) {
 }
 
 function sortActive(items) {
-  const urgent = items.filter(isUrgent).sort((a, b) => (b.priority - a.priority) || dateCompare(a.due_date, b.due_date));
-  const rest = items.filter(i => !isUrgent(i)).sort((a, b) => dateCompare(a.due_date, b.due_date) || (b.priority - a.priority));
-  return [...urgent, ...rest];
+  // Priority comes first everywhere: a High item sits above Medium/Low
+  // regardless of due date. Due date only breaks ties within the same priority.
+  return items.slice().sort((a, b) => (b.priority - a.priority) || dateCompare(a.due_date, b.due_date));
 }
 
 function showError(msg) {
