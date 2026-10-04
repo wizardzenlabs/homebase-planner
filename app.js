@@ -5,22 +5,60 @@ const SUPABASE_KEY = "sb_publishable_BeTVsGr20R1qTWGNze_Rfg_HK4lyVS9";
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const URGENT_WINDOW_DAYS = 3;
+const TRAVEL_STATUS_LABELS = { wishlist: "Wishlist", planned: "Planned", booked: "Booked", been: "Been there" };
 
 const CATEGORIES = [
-  { id: "bills",    label: "Bills",           completeLabel: "Mark paid", completeStatus: "paid", hasAmount: true,  hasRecurrence: true,  hasDueDate: true,  hasEndDate: false, hasNotes: false, dueDateLabel: "Due date" },
-  { id: "house",    label: "House Projects",  completeLabel: "Mark done", completeStatus: "done",  hasAmount: false, hasRecurrence: false, hasDueDate: true,  hasEndDate: false, hasNotes: true,  dueDateLabel: "Target date" },
-  { id: "tasks",    label: "Personal Tasks",  completeLabel: "Mark done", completeStatus: "done",  hasAmount: false, hasRecurrence: false, hasDueDate: true,  hasEndDate: false, hasNotes: true,  dueDateLabel: "Due date" },
-  { id: "travel",   label: "Travel Plans",    completeLabel: "Mark done", completeStatus: "done",  hasAmount: false, hasRecurrence: false, hasDueDate: true,  hasEndDate: true,  hasNotes: true,  dueDateLabel: "Start date" },
-  { id: "thoughts", label: "Random Thoughts", completeLabel: null,        completeStatus: null,    hasAmount: false, hasRecurrence: false, hasDueDate: false, hasEndDate: false, hasNotes: true,  dueDateLabel: "" },
+  {
+    id: "bills", label: "Bills", completeLabel: "Mark paid", completeStatus: "paid",
+    hasAmount: true, amountLabel: "Amount",
+    hasDueDate: true, dueDateLabel: "Due date", hasEndDate: false,
+    hasNotes: false, notesLabel: "Notes", hasLinks: false,
+    priorityStyle: "segmented", isTravel: false,
+    recurrenceOptions: [{ value: "none", label: "One-time" }, { value: "monthly", label: "Monthly" }],
+  },
+  {
+    id: "house", label: "House Projects", completeLabel: "Mark done", completeStatus: "done",
+    hasAmount: false, amountLabel: "Amount",
+    hasDueDate: true, dueDateLabel: "Target date", hasEndDate: false,
+    hasNotes: true, notesLabel: "Notes", hasLinks: true,
+    priorityStyle: "segmented", isTravel: false,
+    recurrenceOptions: null,
+  },
+  {
+    id: "tasks", label: "Personal Tasks", completeLabel: "Mark done", completeStatus: "done",
+    hasAmount: false, amountLabel: "Amount",
+    hasDueDate: true, dueDateLabel: "Due date", hasEndDate: false,
+    hasNotes: true, notesLabel: "Notes", hasLinks: false,
+    priorityStyle: "segmented", isTravel: false,
+    recurrenceOptions: [{ value: "none", label: "One-time" }, { value: "daily", label: "Daily routine" }, { value: "weekly", label: "Weekly routine" }],
+  },
+  {
+    id: "travel", label: "Travel Plans", completeLabel: "Mark done", completeStatus: "done",
+    hasAmount: true, amountLabel: "Budget",
+    hasDueDate: true, dueDateLabel: "Start date", hasEndDate: true,
+    hasNotes: true, notesLabel: "Activities", hasLinks: true,
+    priorityStyle: "stars", isTravel: true,
+    recurrenceOptions: null,
+  },
+  {
+    id: "thoughts", label: "Random Thoughts", completeLabel: null, completeStatus: null,
+    hasAmount: false, amountLabel: "Amount",
+    hasDueDate: false, dueDateLabel: "", hasEndDate: false,
+    hasNotes: true, notesLabel: "Notes", hasLinks: false,
+    priorityStyle: null, isTravel: false,
+    recurrenceOptions: null,
+  },
 ];
 
 function categoryConfig(id) { return CATEGORIES.find(c => c.id === id); }
+function isRoutine(item) { return item.category === "tasks" && (item.recurrence === "daily" || item.recurrence === "weekly"); }
 
 let state = { items: [] };
 let loading = true;
 let bannerMsg = "";
 let activeTab = CATEGORIES[0].id;
 let modalState = null; // { mode: 'add'|'edit', draft: {...} }
+let expandedLinks = new Set();
 
 function todayISO() {
   const d = new Date();
@@ -31,6 +69,7 @@ function todayISO() {
 function escapeHtml(s) {
   return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
+function escapeAttr(s) { return escapeHtml(s); }
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -43,6 +82,11 @@ function formatMoney(n) {
   return "$" + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function addDays(iso, days) {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
 function addMonths(iso, months) {
   const d = new Date(iso + "T00:00:00");
   d.setMonth(d.getMonth() + months);
@@ -50,11 +94,26 @@ function addMonths(iso, months) {
 }
 
 function isUrgent(item) {
-  if (item.status !== "active" || !item.due_date) return false;
+  if (item.status !== "active" || !item.due_date || isRoutine(item)) return false;
   const cutoff = new Date();
   cutoff.setHours(0, 0, 0, 0);
   cutoff.setDate(cutoff.getDate() + URGENT_WINDOW_DAYS);
   return new Date(item.due_date + "T00:00:00") <= cutoff;
+}
+
+function priorityWord(p) { return p >= 5 ? "High" : p <= 1 ? "Low" : "Medium"; }
+
+function dateCompare(a, b) {
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+function sortActive(items) {
+  const urgent = items.filter(isUrgent).sort((a, b) => (b.priority - a.priority) || dateCompare(a.due_date, b.due_date));
+  const rest = items.filter(i => !isUrgent(i)).sort((a, b) => dateCompare(a.due_date, b.due_date) || (b.priority - a.priority));
+  return [...urgent, ...rest];
 }
 
 function showError(msg) {
@@ -78,17 +137,34 @@ async function loadAll() {
 
 function itemsForTab(tabId) {
   const items = state.items.filter(i => i.category === tabId);
-  const active = items.filter(i => i.status === "active").sort((a, b) => {
-    if (!a.due_date && !b.due_date) return 0;
-    if (!a.due_date) return 1;
-    if (!b.due_date) return -1;
-    return a.due_date < b.due_date ? -1 : 1;
-  });
+  if (tabId === "tasks") {
+    const routines = sortActive(items.filter(i => isRoutine(i) && i.status === "active"));
+    const nonRoutine = items.filter(i => !isRoutine(i));
+    const active = sortActive(nonRoutine.filter(i => i.status === "active"));
+    const finished = nonRoutine.filter(i => i.status !== "active").sort((a, b) => (b.completed_at || "").localeCompare(a.completed_at || ""));
+    return { routines, active, finished };
+  }
+  const active = sortActive(items.filter(i => i.status === "active"));
   const finished = items.filter(i => i.status !== "active").sort((a, b) => (b.completed_at || "").localeCompare(a.completed_at || ""));
-  return { active, finished };
+  return { routines: [], active, finished };
+}
+
+function completeLabelFor(item) {
+  if (item.category === "tasks" && item.recurrence === "daily") return "Done for today";
+  if (item.category === "tasks" && item.recurrence === "weekly") return "Done for the week";
+  return categoryConfig(item.category).completeLabel;
 }
 
 async function handleComplete(item) {
+  if (isRoutine(item)) {
+    const days = item.recurrence === "daily" ? 1 : 7;
+    const nextDue = addDays(item.due_date || todayISO(), days);
+    const { error } = await db.from("items").update({ due_date: nextDue, completed_at: new Date().toISOString() }).eq("id", item.id);
+    if (error) showError("Couldn't update that: " + error.message);
+    await loadAll();
+    return;
+  }
+
   const cfg = categoryConfig(item.category);
   if (!cfg.completeStatus) return;
   const { error } = await db.from("items").update({ status: cfg.completeStatus, completed_at: new Date().toISOString() }).eq("id", item.id);
@@ -97,7 +173,7 @@ async function handleComplete(item) {
   if (item.category === "bills" && item.recurrence === "monthly" && item.due_date) {
     const nextDue = addMonths(item.due_date, 1);
     const { error: insertErr } = await db.from("items").insert({
-      category: "bills", title: item.title, amount: item.amount,
+      category: "bills", title: item.title, amount: item.amount, priority: item.priority,
       due_date: nextDue, recurrence: "monthly", status: "active",
     });
     if (insertErr) showError("Marked paid, but couldn't create next month's bill: " + insertErr.message);
@@ -118,13 +194,26 @@ async function handleDelete(item) {
   await loadAll();
 }
 
+async function toggleLetsDo(item) {
+  const { error } = await db.from("items").update({ lets_do_this: !item.lets_do_this }).eq("id", item.id);
+  if (error) { showError("Couldn't update that: " + error.message); return; }
+  await loadAll();
+}
+
 function openAddModal() {
-  modalState = { mode: "add", draft: { category: activeTab, title: "", notes: "", amount: "", due_date: "", end_date: "", recurrence: "none" } };
+  modalState = {
+    mode: "add",
+    draft: {
+      category: activeTab, title: "", notes: "", amount: "", due_date: "", end_date: "",
+      recurrence: "none", priority: 3, links: [], region: "US", city: "",
+      travel_status: "wishlist", lets_do_this: false,
+    },
+  };
   render();
 }
 
 function openEditModal(item) {
-  modalState = { mode: "edit", draft: { ...item, amount: item.amount == null ? "" : item.amount, due_date: item.due_date || "", end_date: item.end_date || "" } };
+  modalState = { mode: "edit", draft: { ...item, amount: item.amount == null ? "" : item.amount, due_date: item.due_date || "", end_date: item.end_date || "", links: [...(item.links || [])] } };
   render();
 }
 
@@ -133,9 +222,32 @@ function closeModal() {
   render();
 }
 
+function syncLinksFromDom() {
+  const rows = document.querySelectorAll(".link-row");
+  const links = [];
+  rows.forEach(row => {
+    const label = row.querySelector(".link-label").value;
+    const url = row.querySelector(".link-url").value;
+    if (label || url) links.push({ label, url });
+  });
+  modalState.draft.links = links;
+}
+
+function addLinkRow() {
+  syncLinksFromDom();
+  modalState.draft.links.push({ label: "", url: "" });
+  render();
+}
+function removeLinkRow(idx) {
+  syncLinksFromDom();
+  modalState.draft.links.splice(idx, 1);
+  render();
+}
+
 async function submitModal(formValues) {
   const draft = modalState.draft;
   const cfg = categoryConfig(draft.category);
+  syncLinksFromDom();
   const payload = {
     category: draft.category,
     title: formValues.title.trim(),
@@ -143,7 +255,13 @@ async function submitModal(formValues) {
     amount: cfg.hasAmount && formValues.amount !== "" ? Number(formValues.amount) : null,
     due_date: cfg.hasDueDate && formValues.due_date ? formValues.due_date : null,
     end_date: cfg.hasEndDate && formValues.end_date ? formValues.end_date : null,
-    recurrence: cfg.hasRecurrence ? formValues.recurrence : "none",
+    recurrence: cfg.recurrenceOptions ? formValues.recurrence : "none",
+    priority: cfg.priorityStyle ? Number(formValues.priority) : 3,
+    links: cfg.hasLinks ? modalState.draft.links.filter(l => l.label || l.url) : [],
+    region: cfg.isTravel ? formValues.region : null,
+    city: cfg.isTravel ? (formValues.city || "").trim() : null,
+    travel_status: cfg.isTravel ? formValues.travel_status : null,
+    lets_do_this: cfg.isTravel ? !!draft.lets_do_this : false,
   };
   if (!payload.title) { showError("Give it a title first."); return; }
 
@@ -190,13 +308,18 @@ function renderList() {
   const wrap = document.getElementById("listWrap");
   if (loading) { wrap.innerHTML = `<div class="empty-state">loading…</div>`; return; }
 
-  const { active, finished } = itemsForTab(activeTab);
-  if (active.length === 0 && finished.length === 0) {
+  const { routines, active, finished } = itemsForTab(activeTab);
+  if (routines.length === 0 && active.length === 0 && finished.length === 0) {
     wrap.innerHTML = `<div class="empty-state"><h3>Nothing here yet</h3><p>Tap + Add to create your first one.</p></div>`;
     return;
   }
 
-  let html = `<div class="list">${active.map(renderCard).join("")}</div>`;
+  let html = "";
+  if (routines.length) {
+    html += `<div class="section-label">Routines</div><div class="list">${routines.map(renderCard).join("")}</div>`;
+    html += `<div class="section-label">To-dos</div>`;
+  }
+  html += `<div class="list">${active.map(renderCard).join("")}</div>`;
   if (finished.length) {
     html += `<div class="section-label">Done</div><div class="list">${finished.map(renderCard).join("")}</div>`;
   }
@@ -206,21 +329,52 @@ function renderList() {
   wrap.querySelectorAll("[data-delete]").forEach(btn => btn.addEventListener("click", () => handleDelete(findItem(btn.dataset.delete))));
   wrap.querySelectorAll("[data-complete]").forEach(btn => btn.addEventListener("click", () => handleComplete(findItem(btn.dataset.complete))));
   wrap.querySelectorAll("[data-reopen]").forEach(btn => btn.addEventListener("click", () => handleReopen(findItem(btn.dataset.reopen))));
+  wrap.querySelectorAll("[data-letsdo]").forEach(btn => btn.addEventListener("click", () => toggleLetsDo(findItem(btn.dataset.letsdo))));
+  wrap.querySelectorAll("[data-linktoggle]").forEach(btn => btn.addEventListener("click", () => {
+    const id = btn.dataset.linktoggle;
+    expandedLinks.has(id) ? expandedLinks.delete(id) : expandedLinks.add(id);
+    render();
+  }));
 }
 
 function findItem(id) { return state.items.find(i => i.id === id); }
 
+function renderStars(priority) {
+  let out = "";
+  for (let i = 1; i <= 5; i++) out += `<span class="star ${i <= priority ? "on" : ""}">★</span>`;
+  return `<div class="stars">${out}</div>`;
+}
+
+function renderLinks(item) {
+  if (!item.links || !item.links.length) return "";
+  const expanded = expandedLinks.has(item.id);
+  const shown = expanded ? item.links : item.links.slice(0, 3);
+  const linkHtml = shown.map(l => `<a class="link-pill" href="${escapeAttr(l.url || "#")}" target="_blank" rel="noopener">${escapeHtml(l.label || l.url)}</a>`).join("");
+  const more = item.links.length > 3
+    ? `<button class="link-more" data-linktoggle="${item.id}">${expanded ? "Show less" : `+${item.links.length - 3} more`}</button>`
+    : "";
+  return `<div class="links-row">${linkHtml}${more}</div>`;
+}
+
 function renderCard(item) {
   const cfg = categoryConfig(item.category);
   const urgent = isUrgent(item);
-  const isDone = item.status !== "active";
+  const isDone = item.status !== "active" && !isRoutine(item);
+  const routine = isRoutine(item);
 
   const badges = [];
   if (urgent) badges.push(`<span class="badge urgent">‼ urgent</span>`);
   if (isDone) badges.push(`<span class="badge done">${item.status === "paid" ? "paid" : "done"}</span>`);
   if (item.recurrence === "monthly") badges.push(`<span class="badge recurring">monthly</span>`);
+  if (routine) badges.push(`<span class="badge recurring">${item.recurrence}</span>`);
+  if (cfg.priorityStyle === "segmented") badges.push(`<span class="badge priority-${priorityWord(item.priority).toLowerCase()}">${priorityWord(item.priority)} priority</span>`);
+  if (cfg.isTravel && item.travel_status) badges.push(`<span class="badge status-${item.travel_status}">${TRAVEL_STATUS_LABELS[item.travel_status]}</span>`);
 
   const metaBits = [];
+  if (cfg.isTravel) {
+    const place = [item.city, item.region].filter(Boolean).join(", ");
+    if (place) metaBits.push(place);
+  }
   if (item.due_date) metaBits.push(`${cfg.dueDateLabel || "Due"}: ${formatDate(item.due_date)}`);
   if (item.end_date) metaBits.push(`through ${formatDate(item.end_date)}`);
 
@@ -231,13 +385,18 @@ function renderCard(item) {
           ${urgent ? `<span class="urgent-flag">‼️</span>` : ""}
           <h3>${escapeHtml(item.title)}</h3>
         </div>
-        ${item.amount != null ? `<span class="amount">${formatMoney(item.amount)}</span>` : ""}
+        ${cfg.isTravel
+          ? `<button class="pin-toggle ${item.lets_do_this ? "active" : ""}" data-letsdo="${item.id}" title="Let's do this">★</button>`
+          : (item.amount != null ? `<span class="amount">${formatMoney(item.amount)}</span>` : "")}
       </div>
+      ${cfg.priorityStyle === "stars" ? renderStars(item.priority) : ""}
       ${badges.length ? `<div class="badges">${badges.join("")}</div>` : ""}
       ${metaBits.length ? `<div class="meta-row">${metaBits.join(" · ")}</div>` : ""}
+      ${cfg.isTravel && item.amount != null ? `<div class="meta-row">Budget: ${formatMoney(item.amount)}</div>` : ""}
       ${item.notes ? `<div class="notes">${escapeHtml(item.notes)}</div>` : ""}
+      ${cfg.hasLinks ? renderLinks(item) : ""}
       <div class="card-actions">
-        ${!isDone && cfg.completeLabel ? `<button class="icon-btn complete" data-complete="${item.id}">${cfg.completeLabel}</button>` : ""}
+        ${!isDone && cfg.completeLabel ? `<button class="icon-btn complete" data-complete="${item.id}">${completeLabelFor(item)}</button>` : ""}
         ${isDone && cfg.completeLabel ? `<button class="icon-btn" data-reopen="${item.id}">Reopen</button>` : ""}
         <button class="icon-btn" data-edit="${item.id}">Edit</button>
         <button class="icon-btn danger" data-delete="${item.id}">Delete</button>
@@ -261,11 +420,31 @@ function renderModal() {
             <label>Title</label>
             <input type="text" id="f-title" value="${escapeHtml(draft.title || "")}" placeholder="e.g. ${placeholderFor(draft.category)}">
           </div>
+
+          ${cfg.isTravel ? `
+          <div class="field">
+            <label>Region</label>
+            <div class="region-toggle">
+              <button type="button" class="region-btn ${draft.region === "US" ? "active" : ""}" data-region="US">US</button>
+              <button type="button" class="region-btn ${draft.region === "International" ? "active" : ""}" data-region="International">International</button>
+            </div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>City</label><input type="text" id="f-city" value="${escapeHtml(draft.city || "")}" placeholder="e.g. Austin"></div>
+            <div class="field">
+              <label>Status</label>
+              <select id="f-travel-status">
+                ${Object.entries(TRAVEL_STATUS_LABELS).map(([v, l]) => `<option value="${v}" ${draft.travel_status === v ? "selected" : ""}>${l}</option>`).join("")}
+              </select>
+            </div>
+          </div>` : ""}
+
           ${cfg.hasAmount ? `
           <div class="field">
-            <label>Amount</label>
+            <label>${cfg.amountLabel}</label>
             <input type="number" step="0.01" id="f-amount" value="${draft.amount || ""}" placeholder="0.00">
           </div>` : ""}
+
           <div class="row2">
             ${cfg.hasDueDate ? `
             <div class="field">
@@ -278,19 +457,57 @@ function renderModal() {
               <input type="date" id="f-end" value="${draft.end_date || ""}">
             </div>` : ""}
           </div>
-          ${cfg.hasRecurrence ? `
+
+          ${cfg.recurrenceOptions ? `
           <div class="field">
             <label>Repeats</label>
             <select id="f-recurrence">
-              <option value="none" ${draft.recurrence === "none" ? "selected" : ""}>One-time</option>
-              <option value="monthly" ${draft.recurrence === "monthly" ? "selected" : ""}>Monthly</option>
+              ${cfg.recurrenceOptions.map(o => `<option value="${o.value}" ${draft.recurrence === o.value ? "selected" : ""}>${o.label}</option>`).join("")}
             </select>
           </div>` : ""}
+
+          ${cfg.priorityStyle === "segmented" ? `
+          <div class="field">
+            <label>Priority</label>
+            <div class="region-toggle">
+              <button type="button" class="priority-btn ${draft.priority === 1 ? "active" : ""}" data-priority="1">Low</button>
+              <button type="button" class="priority-btn ${draft.priority === 3 ? "active" : ""}" data-priority="3">Medium</button>
+              <button type="button" class="priority-btn ${draft.priority === 5 ? "active" : ""}" data-priority="5">High</button>
+            </div>
+          </div>` : ""}
+          ${cfg.priorityStyle === "stars" ? `
+          <div class="field">
+            <label>Priority</label>
+            <div class="star-picker">
+              ${[1, 2, 3, 4, 5].map(n => `<button type="button" class="star-pick ${n <= draft.priority ? "on" : ""}" data-star="${n}">★</button>`).join("")}
+            </div>
+          </div>` : ""}
+
+          ${cfg.isTravel ? `
+          <div class="field checkbox-field">
+            <label><input type="checkbox" id="f-letsdo" ${draft.lets_do_this ? "checked" : ""}> Let's do this!</label>
+          </div>` : ""}
+
           ${cfg.hasNotes ? `
           <div class="field">
-            <label>Notes</label>
+            <label>${cfg.notesLabel}</label>
             <textarea id="f-notes" placeholder="any details">${escapeHtml(draft.notes || "")}</textarea>
           </div>` : ""}
+
+          ${cfg.hasLinks ? `
+          <div class="field">
+            <label>Links</label>
+            <div class="link-rows">
+              ${(draft.links || []).map((l, i) => `
+                <div class="link-row">
+                  <input type="text" class="link-label" placeholder="label" value="${escapeAttr(l.label || "")}">
+                  <input type="url" class="link-url" placeholder="https://…" value="${escapeAttr(l.url || "")}">
+                  <button type="button" class="link-remove" data-removelink="${i}">&times;</button>
+                </div>`).join("")}
+            </div>
+            <button type="button" class="add-link-btn" id="addLinkBtn">+ Add link</button>
+          </div>` : ""}
+
           <div class="modal-footer">
             <button class="btn-ghost" id="modalCancel">Cancel</button>
             <button class="btn-primary" id="modalSave">Save</button>
@@ -310,8 +527,18 @@ function wireModal() {
   document.getElementById("overlay").addEventListener("click", e => { if (e.target.id === "overlay") close(); });
   document.getElementById("modalClose").addEventListener("click", close);
   document.getElementById("modalCancel").addEventListener("click", close);
+
+  document.querySelectorAll(".region-btn").forEach(btn => btn.addEventListener("click", () => { modalState.draft.region = btn.dataset.region; render(); }));
+  document.querySelectorAll(".priority-btn").forEach(btn => btn.addEventListener("click", () => { modalState.draft.priority = Number(btn.dataset.priority); render(); }));
+  document.querySelectorAll(".star-pick").forEach(btn => btn.addEventListener("click", () => { modalState.draft.priority = Number(btn.dataset.star); render(); }));
+  const addLinkBtn = document.getElementById("addLinkBtn");
+  if (addLinkBtn) addLinkBtn.addEventListener("click", addLinkRow);
+  document.querySelectorAll("[data-removelink]").forEach(btn => btn.addEventListener("click", () => removeLinkRow(Number(btn.dataset.removelink))));
+
   document.getElementById("modalSave").addEventListener("click", () => {
     const get = id => { const el = document.getElementById(id); return el ? el.value : ""; };
+    const letsdoEl = document.getElementById("f-letsdo");
+    if (letsdoEl) modalState.draft.lets_do_this = letsdoEl.checked;
     submitModal({
       title: get("f-title"),
       amount: get("f-amount"),
@@ -319,6 +546,10 @@ function wireModal() {
       end_date: get("f-end"),
       recurrence: get("f-recurrence") || "none",
       notes: get("f-notes"),
+      priority: modalState.draft.priority,
+      region: modalState.draft.region,
+      city: get("f-city"),
+      travel_status: get("f-travel-status") || "wishlist",
     });
   });
 }

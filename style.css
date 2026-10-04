@@ -76,9 +76,64 @@ button{ font-family: inherit; }
 .badge.urgent{ background: var(--red-soft); color: var(--red); }
 .badge.done{ background: var(--green-soft); color: var(--green); }
 .badge.recurring{ background: var(--pink-well); color: var(--ink); }
+.badge.priority-high{ background: var(--red-soft); color: var(--red); }
+.badge.priority-medium{ background: var(--pink-well); color: var(--ink); }
+.badge.priority-low{ background: var(--white); color: var(--ink-soft); border:1px solid var(--line); }
+.badge.status-wishlist{ background: var(--pink-well); color: var(--ink); }
+.badge.status-planned{ background: var(--green-soft); color: var(--green); }
+.badge.status-booked{ background: var(--ink); color: var(--white); }
+.badge.status-been{ background: var(--ink-soft); color: var(--white); }
 
 .meta-row{ font-size:0.82rem; color: var(--ink-soft); }
 .notes{ font-size:0.88rem; color: var(--ink); overflow-wrap:anywhere; }
+
+.stars{ display:flex; gap:2px; }
+.star{ color: var(--line); font-size:1.05rem; line-height:1; }
+.star.on{ color: var(--ink); }
+
+.pin-toggle{
+  background:none; border:1px solid var(--line); border-radius:999px;
+  width:34px; height:34px; font-size:1.1rem; cursor:pointer; flex:none;
+  color: var(--ink-soft); display:flex; align-items:center; justify-content:center;
+}
+.pin-toggle.active{ background: var(--ink); border-color: var(--ink); color: var(--white); }
+
+.links-row{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.link-pill{
+  background: var(--pink-well); color: var(--ink); text-decoration:none;
+  border-radius:999px; padding:5px 11px; font-size:0.78rem; font-weight:600;
+  max-width: 180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.link-more{
+  background:none; border:none; color: var(--ink-soft); font-size:0.78rem; font-weight:700;
+  cursor:pointer; padding:5px 2px; text-decoration:underline;
+}
+
+.region-toggle{ display:flex; gap:8px; }
+.region-toggle button, .priority-btn{
+  flex:1; border:1px solid var(--line); background:var(--white); color: var(--ink);
+  padding:9px; border-radius:10px; font-weight:600; font-size:0.85rem; cursor:pointer;
+}
+.region-toggle button.active, .priority-btn.active{ background: var(--ink); border-color:var(--ink); color:var(--white); }
+
+.star-picker{ display:flex; gap:4px; }
+.star-pick{ border:none; background:none; font-size:1.4rem; cursor:pointer; color: var(--line); padding:0; }
+.star-pick.on{ color: var(--ink); }
+
+.link-rows{ display:flex; flex-direction:column; gap:8px; }
+.link-row{ display:flex; gap:6px; min-width:0; }
+.link-row input{ flex:1; min-width:0; }
+.link-row .link-label{ flex: 0 0 110px; }
+.link-remove{
+  border:1px solid var(--line); background:var(--white); border-radius:8px;
+  width:34px; flex:none; cursor:pointer; color:var(--ink-soft); font-size:1rem;
+}
+.add-link-btn{
+  align-self:flex-start; border:1px dashed var(--ink); background:none; color: var(--ink);
+  border-radius:8px; padding:6px 12px; font-size:0.8rem; font-weight:700; cursor:pointer; margin-top:6px;
+}
+.checkbox-field{ display:flex; align-items:center; gap:8px; font-size:0.85rem; font-weight:600; }
+.checkbox-field label{ display:flex; align-items:center; gap:8px; text-transform:none; letter-spacing:normal; font-size:0.9rem; }
 
 .card-actions{ display:flex; gap:8px; margin-top:2px; }
 .icon-btn{
