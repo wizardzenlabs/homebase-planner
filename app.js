@@ -238,24 +238,37 @@ function closeModal() {
   render();
 }
 
-function syncLinksFromDom() {
-  const rows = document.querySelectorAll(".link-row");
-  const links = [];
-  rows.forEach(row => {
-    const label = row.querySelector(".link-label").value;
-    const url = row.querySelector(".link-url").value;
-    if (label || url) links.push({ label, url });
-  });
-  modalState.draft.links = links;
+// Every modal input is uncontrolled (its value lives only in the DOM until
+// read). Any button that re-renders the modal for a reason OTHER than
+// saving (priority, region, stars, add/remove link) must capture whatever
+// is currently typed into the plain fields first, or the rebuild wipes it.
+function syncDraftFromDom() {
+  const d = modalState.draft;
+  const field = id => document.getElementById(id);
+
+  const title = field("f-title"); if (title) d.title = title.value;
+  const amount = field("f-amount"); if (amount) d.amount = amount.value;
+  const due = field("f-due"); if (due) d.due_date = due.value;
+  const end = field("f-end"); if (end) d.end_date = end.value;
+  const recurrence = field("f-recurrence"); if (recurrence) d.recurrence = recurrence.value;
+  const notes = field("f-notes"); if (notes) d.notes = notes.value;
+  const city = field("f-city"); if (city) d.city = city.value;
+  const travelStatus = field("f-travel-status"); if (travelStatus) d.travel_status = travelStatus.value;
+  const letsdo = field("f-letsdo"); if (letsdo) d.lets_do_this = letsdo.checked;
+
+  d.links = Array.from(document.querySelectorAll(".link-row")).map(row => ({
+    label: row.querySelector(".link-label").value,
+    url: row.querySelector(".link-url").value,
+  })).filter(l => l.label || l.url);
 }
 
 function addLinkRow() {
-  syncLinksFromDom();
+  syncDraftFromDom();
   modalState.draft.links.push({ label: "", url: "" });
   render();
 }
 function removeLinkRow(idx) {
-  syncLinksFromDom();
+  syncDraftFromDom();
   modalState.draft.links.splice(idx, 1);
   render();
 }
@@ -263,7 +276,7 @@ function removeLinkRow(idx) {
 async function submitModal(formValues) {
   const draft = modalState.draft;
   const cfg = categoryConfig(draft.category);
-  syncLinksFromDom();
+  syncDraftFromDom();
   const payload = {
     category: draft.category,
     title: formValues.title.trim(),
@@ -556,9 +569,9 @@ function wireModal() {
   document.getElementById("modalClose").addEventListener("click", close);
   document.getElementById("modalCancel").addEventListener("click", close);
 
-  document.querySelectorAll(".region-btn").forEach(btn => btn.addEventListener("click", () => { modalState.draft.region = btn.dataset.region; render(); }));
-  document.querySelectorAll(".priority-btn").forEach(btn => btn.addEventListener("click", () => { modalState.draft.priority = Number(btn.dataset.priority); render(); }));
-  document.querySelectorAll(".star-pick").forEach(btn => btn.addEventListener("click", () => { modalState.draft.priority = Number(btn.dataset.star); render(); }));
+  document.querySelectorAll(".region-btn").forEach(btn => btn.addEventListener("click", () => { syncDraftFromDom(); modalState.draft.region = btn.dataset.region; render(); }));
+  document.querySelectorAll(".priority-btn").forEach(btn => btn.addEventListener("click", () => { syncDraftFromDom(); modalState.draft.priority = Number(btn.dataset.priority); render(); }));
+  document.querySelectorAll(".star-pick").forEach(btn => btn.addEventListener("click", () => { syncDraftFromDom(); modalState.draft.priority = Number(btn.dataset.star); render(); }));
   const addLinkBtn = document.getElementById("addLinkBtn");
   if (addLinkBtn) addLinkBtn.addEventListener("click", addLinkRow);
   document.querySelectorAll("[data-removelink]").forEach(btn => btn.addEventListener("click", () => removeLinkRow(Number(btn.dataset.removelink))));
