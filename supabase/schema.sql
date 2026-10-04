@@ -20,6 +20,7 @@ create table items (
   city text,                                                -- travel only
   travel_status text check (travel_status in ('wishlist','planned','booked','been')), -- travel only
   lets_do_this boolean not null default false,              -- travel only
+  manual_urgent boolean not null default false,              -- bills/house/tasks: force-urgent regardless of due date
   created_at timestamptz not null default now(),
   completed_at timestamptz
 );

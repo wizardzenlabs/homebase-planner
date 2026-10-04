@@ -53,14 +53,15 @@ Deno.serve(async (_req) => {
     cutoff.setDate(cutoff.getDate() + URGENT_WINDOW_DAYS);
     const cutoffISO = cutoff.toISOString().slice(0, 10);
 
+    // Due/overdue within the window, OR manually flagged urgent regardless of
+    // due date -- either one qualifies for the digest.
     const { data: items, error: itemsErr } = await admin
       .from("items")
       .select("*")
       .eq("status", "active")
-      .not("due_date", "is", null)
-      .lte("due_date", cutoffISO)
       .neq("recurrence", "daily")
       .neq("recurrence", "weekly")
+      .or(`and(due_date.not.is.null,due_date.lte.${cutoffISO}),manual_urgent.eq.true`)
       .order("priority", { ascending: false })
       .order("due_date", { ascending: true });
     if (itemsErr) throw new Error("couldn't load items: " + itemsErr.message);
@@ -79,9 +80,10 @@ Deno.serve(async (_req) => {
     } else {
       html = Object.entries(grouped).map(([category, catItems]) => {
         const rows = catItems.map((item) => {
-          const overdue = item.due_date < todayISO;
+          const overdue = item.due_date != null && item.due_date < todayISO;
+          const dateLine = item.due_date ? ` — ${formatDate(item.due_date)}` : "";
           const notesLine = item.notes ? `<br><span style="color:#6b6b6b;font-size:0.85em;">${item.notes}</span>` : "";
-          return `<li>${overdue ? "⚠️ " : ""}<strong>${item.title}</strong> — ${formatDate(item.due_date)}${formatMoney(item.amount)} (${priorityWord(item.priority)} priority)${notesLine}</li>`;
+          return `<li>${overdue ? "⚠️ " : ""}<strong>${item.title}</strong>${dateLine}${formatMoney(item.amount)} (${priorityWord(item.priority)} priority)${notesLine}</li>`;
         }).join("");
         return `<h3>${CATEGORY_LABELS[category] ?? category}</h3><ul>${rows}</ul>`;
       }).join("");

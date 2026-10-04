@@ -96,7 +96,9 @@ function addMonths(iso, months) {
 }
 
 function isUrgent(item) {
-  if (item.status !== "active" || !item.due_date || isRoutine(item)) return false;
+  if (item.status !== "active" || isRoutine(item)) return false;
+  if (item.manual_urgent) return true;
+  if (!item.due_date) return false;
   const cutoff = new Date();
   cutoff.setHours(0, 0, 0, 0);
   cutoff.setDate(cutoff.getDate() + URGENT_WINDOW_DAYS);
@@ -222,7 +224,7 @@ function openAddModal() {
     draft: {
       category: activeTab, title: "", notes: "", amount: "", due_date: "", end_date: "",
       recurrence: "none", priority: 3, links: [], region: "US", city: "",
-      travel_status: "wishlist", lets_do_this: false,
+      travel_status: "wishlist", lets_do_this: false, manual_urgent: false,
     },
   };
   render();
@@ -255,6 +257,7 @@ function syncDraftFromDom() {
   const city = field("f-city"); if (city) d.city = city.value;
   const travelStatus = field("f-travel-status"); if (travelStatus) d.travel_status = travelStatus.value;
   const letsdo = field("f-letsdo"); if (letsdo) d.lets_do_this = letsdo.checked;
+  const manualUrgent = field("f-manual-urgent"); if (manualUrgent) d.manual_urgent = manualUrgent.checked;
 
   d.links = Array.from(document.querySelectorAll(".link-row")).map(row => ({
     label: row.querySelector(".link-label").value,
@@ -291,6 +294,7 @@ async function submitModal(formValues) {
     city: cfg.isTravel ? (formValues.city || "").trim() : null,
     travel_status: cfg.isTravel ? formValues.travel_status : null,
     lets_do_this: cfg.isTravel ? !!draft.lets_do_this : false,
+    manual_urgent: cfg.priorityStyle === "segmented" ? !!draft.manual_urgent : false,
   };
   if (!payload.title) { showError("Give it a title first."); return; }
 
@@ -527,6 +531,11 @@ function renderModal() {
           ${cfg.isTravel ? `
           <div class="field checkbox-field">
             <label><input type="checkbox" id="f-letsdo" ${draft.lets_do_this ? "checked" : ""}> Let's do this!</label>
+          </div>` : ""}
+
+          ${cfg.priorityStyle === "segmented" ? `
+          <div class="field checkbox-field">
+            <label><input type="checkbox" id="f-manual-urgent" ${draft.manual_urgent ? "checked" : ""}> Mark as urgent</label>
           </div>` : ""}
 
           ${cfg.hasNotes ? `
