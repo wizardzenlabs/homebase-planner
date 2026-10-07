@@ -528,15 +528,9 @@ function renderModal() {
             </div>
           </div>` : ""}
 
-          ${cfg.isTravel ? `
-          <div class="field checkbox-field">
-            <label><input type="checkbox" id="f-letsdo" ${draft.lets_do_this ? "checked" : ""}> Let's do this!</label>
-          </div>` : ""}
+          ${cfg.isTravel ? renderToggle("f-letsdo", "Let's do this!", draft.lets_do_this) : ""}
 
-          ${cfg.priorityStyle === "segmented" ? `
-          <div class="field checkbox-field">
-            <label><input type="checkbox" id="f-manual-urgent" ${draft.manual_urgent ? "checked" : ""}> Mark as urgent</label>
-          </div>` : ""}
+          ${cfg.priorityStyle === "segmented" ? renderToggle("f-manual-urgent", "Mark as urgent", draft.manual_urgent, "urgent") : ""}
 
           ${cfg.hasNotes ? `
           <div class="field">
@@ -564,6 +558,20 @@ function renderModal() {
           </div>
         </div>
       </div>
+    </div>
+  `;
+}
+
+function renderToggle(id, labelText, checked, modifier) {
+  return `
+    <div class="field">
+      <label class="toggle-row">
+        <span class="toggle-switch ${modifier ? `toggle-switch--${modifier}` : ""}">
+          <input type="checkbox" id="${id}" ${checked ? "checked" : ""}>
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        </span>
+        <span>${labelText}</span>
+      </label>
     </div>
   `;
 }
