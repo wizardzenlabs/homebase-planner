@@ -11,6 +11,10 @@
   --red-soft: #f8d9d6;
   --green: #3f7a4e;
   --green-soft: #dcebdd;
+  --orange: #b35900;
+  --orange-soft: #ffe3c2;
+  --yellow: #8a6d00;
+  --yellow-soft: #fff1b0;
   color-scheme: light;
 }
 *{ box-sizing: border-box; }
@@ -48,6 +52,7 @@ button{ font-family: inherit; }
   padding: 9px 16px; border-radius:999px; font-size:0.85rem; font-weight:600; cursor:pointer;
 }
 .tab.active{ background: var(--ink); color: var(--white); }
+.tab-dot{ display:inline-block; width:7px; height:7px; border-radius:50%; background: var(--red); margin-left:6px; vertical-align:middle; }
 
 .empty-state{ text-align:center; padding: 60px 20px; color: var(--ink-soft); }
 .empty-state h3{ margin-bottom:6px; }
@@ -84,15 +89,14 @@ button{ font-family: inherit; }
 .badge.done{ background: var(--green-soft); color: var(--green); }
 .badge.recurring{ background: var(--pink-well); color: var(--ink); }
 .badge.priority-high{ background: var(--red-soft); color: var(--red); }
-.badge.priority-medium{ background: var(--pink-well); color: var(--ink); }
-.badge.priority-low{ background: var(--white); color: var(--ink-soft); border:1px solid var(--line); }
+.badge.priority-medium{ background: var(--yellow-soft); color: var(--yellow); }
+.badge.priority-low{ background: var(--orange-soft); color: var(--orange); }
 .badge.status-wishlist{ background: var(--pink-well); color: var(--ink); }
 .badge.status-planned{ background: var(--green-soft); color: var(--green); }
 .badge.status-booked{ background: var(--ink); color: var(--white); }
 .badge.status-been{ background: var(--ink-soft); color: var(--white); }
 
 .meta-row{ font-size:0.82rem; color: var(--ink-soft); }
-.notes{ font-size:0.88rem; color: var(--ink); overflow-wrap:anywhere; white-space: pre-wrap; }
 
 .stars{ display:flex; gap:2px; }
 .star{ color: var(--line); font-size:1.05rem; line-height:1; }
@@ -104,6 +108,18 @@ button{ font-family: inherit; }
   color: var(--ink-soft); display:flex; align-items:center; justify-content:center;
 }
 .pin-toggle.active{ background: var(--ink); border-color: var(--ink); color: var(--white); }
+
+.checklist{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:5px; }
+.checklist-item label{ display:flex; align-items:flex-start; gap:7px; font-size:0.88rem; color: var(--ink); cursor:pointer; }
+.checklist-item input[type=checkbox]{ margin-top:3px; accent-color: var(--ink); flex:none; }
+.checklist-item .checklist-num{ color: var(--ink-soft); font-weight:600; flex:none; }
+.checklist-item.done .checklist-text{ text-decoration: line-through; color: var(--ink-soft); }
+
+.checklist-rows{ display:flex; flex-direction:column; gap:8px; }
+.checklist-row{ display:flex; align-items:center; gap:7px; }
+.checklist-row .checklist-num{ flex:none; width:16px; color: var(--ink-soft); font-weight:600; font-size:0.85rem; }
+.checklist-row .checklist-done{ flex:none; accent-color: var(--ink); width:16px; height:16px; }
+.checklist-row .checklist-text{ flex:1; min-width:0; }
 
 .links-row{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
 .link-pill{
@@ -121,7 +137,11 @@ button{ font-family: inherit; }
   flex:1; border:1px solid var(--line); background:var(--white); color: var(--ink);
   padding:9px; border-radius:10px; font-weight:600; font-size:0.85rem; cursor:pointer;
 }
-.region-toggle button.active, .priority-btn.active{ background: var(--ink); border-color:var(--ink); color:var(--white); }
+.region-toggle button.active{ background: var(--ink); border-color:var(--ink); color:var(--white); }
+.priority-btn.active{ color:var(--white); }
+.priority-btn[data-priority="1"].active{ background: var(--orange); border-color: var(--orange); }
+.priority-btn[data-priority="3"].active{ background: var(--yellow); border-color: var(--yellow); }
+.priority-btn[data-priority="5"].active{ background: var(--red); border-color: var(--red); }
 
 .star-picker{ display:flex; gap:4px; }
 .star-pick{ border:none; background:none; font-size:1.4rem; cursor:pointer; color: var(--line); padding:0; }
@@ -218,6 +238,7 @@ button{ font-family: inherit; }
 }
 
 footer.credit{ text-align:center; color: var(--ink-soft); font-size:0.74rem; padding: 30px 0 26px; }
+.export-link{ background:none; border:none; color: var(--ink-soft); font-size:0.74rem; text-decoration:underline; cursor:pointer; margin-top:6px; padding:0; }
 
 @media (max-width: 480px){
   .topbar{ padding-block: 16px 8px; }

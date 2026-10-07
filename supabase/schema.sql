@@ -8,7 +8,8 @@ create table items (
   id uuid primary key default gen_random_uuid(),
   category text not null check (category in ('bills','house','tasks','travel','thoughts')),
   title text not null,
-  notes text,                        -- "Activities" for travel
+  notes text,                        -- unused by the app; kept for old data, see checklist below
+  checklist jsonb not null default '[]'::jsonb, -- house/tasks/travel/thoughts: [{text, done}, ...] -- numbered, checkable sub-items ("Activities" for travel)
   amount numeric,                    -- bills: amount owed. travel: budget.
   due_date date,                     -- bills/house/tasks: due date. travel: start date.
   end_date date,                     -- travel only

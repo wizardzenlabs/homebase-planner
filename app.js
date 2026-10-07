@@ -12,7 +12,7 @@ const CATEGORIES = [
     id: "bills", label: "Bills", completeLabel: "Mark paid", completeStatus: "paid",
     hasAmount: true, amountLabel: "Amount",
     hasDueDate: true, dueDateLabel: "Due date", hasEndDate: false,
-    hasNotes: false, notesLabel: "Notes", hasLinks: false,
+    hasChecklist: false, checklistLabel: "Notes", hasLinks: false,
     priorityStyle: "segmented", isTravel: false,
     recurrenceOptions: [{ value: "none", label: "One-time" }, { value: "monthly", label: "Monthly" }],
   },
@@ -20,7 +20,7 @@ const CATEGORIES = [
     id: "house", label: "House Projects", completeLabel: "Mark done", completeStatus: "done",
     hasAmount: false, amountLabel: "Amount",
     hasDueDate: true, dueDateLabel: "Target date", hasEndDate: false,
-    hasNotes: true, notesLabel: "Notes", hasLinks: true,
+    hasChecklist: true, checklistLabel: "To-do", hasLinks: true,
     priorityStyle: "segmented", isTravel: false,
     recurrenceOptions: null,
   },
@@ -28,7 +28,7 @@ const CATEGORIES = [
     id: "tasks", label: "Personal Tasks", completeLabel: "Mark done", completeStatus: "done",
     hasAmount: false, amountLabel: "Amount",
     hasDueDate: true, dueDateLabel: "Due date", hasEndDate: false,
-    hasNotes: true, notesLabel: "Notes", hasLinks: false,
+    hasChecklist: true, checklistLabel: "To-do", hasLinks: false,
     priorityStyle: "segmented", isTravel: false,
     recurrenceOptions: [{ value: "none", label: "One-time" }, { value: "daily", label: "Daily routine" }, { value: "weekly", label: "Weekly routine" }],
   },
@@ -36,7 +36,7 @@ const CATEGORIES = [
     id: "travel", label: "Travel Plans", completeLabel: "Mark done", completeStatus: "done",
     hasAmount: true, amountLabel: "Budget",
     hasDueDate: true, dueDateLabel: "Start date", hasEndDate: true,
-    hasNotes: true, notesLabel: "Activities", hasLinks: true,
+    hasChecklist: true, checklistLabel: "Activities", hasLinks: true,
     priorityStyle: "stars", isTravel: true,
     recurrenceOptions: null,
   },
@@ -44,7 +44,7 @@ const CATEGORIES = [
     id: "thoughts", label: "Random Thoughts", completeLabel: null, completeStatus: null,
     hasAmount: false, amountLabel: "Amount",
     hasDueDate: false, dueDateLabel: "", hasEndDate: false,
-    hasNotes: true, notesLabel: "Notes", hasLinks: true,
+    hasChecklist: true, checklistLabel: "Notes", hasLinks: true,
     priorityStyle: null, isTravel: false,
     recurrenceOptions: null,
   },
@@ -222,7 +222,7 @@ function openAddModal() {
   modalState = {
     mode: "add",
     draft: {
-      category: activeTab, title: "", notes: "", amount: "", due_date: "", end_date: "",
+      category: activeTab, title: "", checklist: [], amount: "", due_date: "", end_date: "",
       recurrence: "none", priority: 3, links: [], region: "US", city: "",
       travel_status: "wishlist", lets_do_this: false, manual_urgent: false,
     },
@@ -231,7 +231,7 @@ function openAddModal() {
 }
 
 function openEditModal(item) {
-  modalState = { mode: "edit", draft: { ...item, amount: item.amount == null ? "" : item.amount, due_date: item.due_date || "", end_date: item.end_date || "", links: [...(item.links || [])] } };
+  modalState = { mode: "edit", draft: { ...item, amount: item.amount == null ? "" : item.amount, due_date: item.due_date || "", end_date: item.end_date || "", links: [...(item.links || [])], checklist: [...(item.checklist || [])] } };
   render();
 }
 
@@ -253,7 +253,6 @@ function syncDraftFromDom() {
   const due = field("f-due"); if (due) d.due_date = due.value;
   const end = field("f-end"); if (end) d.end_date = end.value;
   const recurrence = field("f-recurrence"); if (recurrence) d.recurrence = recurrence.value;
-  const notes = field("f-notes"); if (notes) d.notes = notes.value;
   const city = field("f-city"); if (city) d.city = city.value;
   const travelStatus = field("f-travel-status"); if (travelStatus) d.travel_status = travelStatus.value;
   const letsdo = field("f-letsdo"); if (letsdo) d.lets_do_this = letsdo.checked;
@@ -263,6 +262,11 @@ function syncDraftFromDom() {
     label: row.querySelector(".link-label").value,
     url: row.querySelector(".link-url").value,
   })).filter(l => l.label || l.url);
+
+  d.checklist = Array.from(document.querySelectorAll(".checklist-row")).map(row => ({
+    text: row.querySelector(".checklist-text").value,
+    done: row.querySelector(".checklist-done").checked,
+  })).filter(c => c.text);
 }
 
 function addLinkRow() {
@@ -276,6 +280,17 @@ function removeLinkRow(idx) {
   render();
 }
 
+function addChecklistRow() {
+  syncDraftFromDom();
+  modalState.draft.checklist.push({ text: "", done: false });
+  render();
+}
+function removeChecklistRow(idx) {
+  syncDraftFromDom();
+  modalState.draft.checklist.splice(idx, 1);
+  render();
+}
+
 async function submitModal(formValues) {
   const draft = modalState.draft;
   const cfg = categoryConfig(draft.category);
@@ -283,7 +298,7 @@ async function submitModal(formValues) {
   const payload = {
     category: draft.category,
     title: formValues.title.trim(),
-    notes: cfg.hasNotes ? (formValues.notes || "").trim() : null,
+    checklist: cfg.hasChecklist ? modalState.draft.checklist.filter(c => c.text) : [],
     amount: cfg.hasAmount && formValues.amount !== "" ? Number(formValues.amount) : null,
     due_date: cfg.hasDueDate && formValues.due_date ? formValues.due_date : null,
     end_date: cfg.hasEndDate && formValues.end_date ? formValues.end_date : null,
@@ -319,10 +334,10 @@ function render() {
       <button class="add-btn" id="addBtn">+ Add</button>
     </div>
     ${bannerMsg ? `<div class="banner">${escapeHtml(bannerMsg)}</div>` : ""}
-    <div class="tabs">${CATEGORIES.map(c => `<button class="tab ${c.id === activeTab ? "active" : ""}" data-tab="${c.id}">${c.label}</button>`).join("")}</div>
+    <div class="tabs">${CATEGORIES.map(c => `<button class="tab ${c.id === activeTab ? "active" : ""}" data-tab="${c.id}">${c.label}${categoryHasUrgent(c.id) ? '<span class="tab-dot"></span>' : ""}</button>`).join("")}</div>
     <div id="listWrap"></div>
     <button class="fab" id="fab">+</button>
-    <footer class="credit">Dasha's Daily Organizer</footer>
+    <footer class="credit">Dasha's Daily Organizer<br><button class="export-link" id="exportBtn">Export my data</button></footer>
     ${modalState ? renderModal() : ""}
   `;
 
@@ -330,11 +345,28 @@ function render() {
 
   document.getElementById("addBtn").addEventListener("click", openAddModal);
   document.getElementById("fab").addEventListener("click", openAddModal);
+  document.getElementById("exportBtn").addEventListener("click", exportData);
   document.querySelectorAll(".tab").forEach(btn => {
     btn.addEventListener("click", () => { activeTab = btn.dataset.tab; render(); });
   });
 
   if (modalState) wireModal();
+}
+
+function categoryHasUrgent(categoryId) {
+  return state.items.some(i => i.category === categoryId && isUrgent(i));
+}
+
+async function exportData() {
+  const { data, error } = await db.from("items").select("*").order("created_at");
+  if (error) { showError("Couldn't export: " + error.message); return; }
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `calm-mind-export-${todayISO()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function renderList() {
@@ -373,6 +405,7 @@ function renderList() {
     cb.checked ? handleComplete(item) : handleReopen(item);
   }));
   wrap.querySelectorAll("[data-letsdo]").forEach(btn => btn.addEventListener("click", () => toggleLetsDo(findItem(btn.dataset.letsdo))));
+  wrap.querySelectorAll("[data-checkitem]").forEach(cb => cb.addEventListener("change", () => toggleChecklistItem(cb.dataset.checkitem, Number(cb.dataset.checkidx))));
   wrap.querySelectorAll("[data-linktoggle]").forEach(btn => btn.addEventListener("click", () => {
     const id = btn.dataset.linktoggle;
     expandedLinks.has(id) ? expandedLinks.delete(id) : expandedLinks.add(id);
@@ -405,6 +438,29 @@ function renderDoneToggle(item) {
       <span>${label}</span>
     </label>
   `;
+}
+
+function renderChecklist(item) {
+  if (!item.checklist || !item.checklist.length) return "";
+  const rows = item.checklist.map((c, i) => `
+    <li class="checklist-item ${c.done ? "done" : ""}">
+      <label>
+        <input type="checkbox" data-checkitem="${item.id}" data-checkidx="${i}" ${c.done ? "checked" : ""}>
+        <span class="checklist-num">${i + 1}.</span>
+        <span class="checklist-text">${escapeHtml(c.text)}</span>
+      </label>
+    </li>
+  `).join("");
+  return `<ol class="checklist">${rows}</ol>`;
+}
+
+async function toggleChecklistItem(itemId, idx) {
+  const item = findItem(itemId);
+  if (!item || !item.checklist[idx]) return;
+  const checklist = item.checklist.map((c, i) => i === idx ? { ...c, done: !c.done } : c);
+  const { error } = await db.from("items").update({ checklist }).eq("id", itemId);
+  if (error) { showError("Couldn't update that: " + error.message); return; }
+  await loadAll();
 }
 
 function renderLinks(item) {
@@ -455,7 +511,7 @@ function renderCard(item) {
       ${badges.length ? `<div class="badges">${badges.join("")}</div>` : ""}
       ${metaBits.length ? `<div class="meta-row">${metaBits.join(" · ")}</div>` : ""}
       ${cfg.isTravel && item.amount != null ? `<div class="meta-row">Budget: ${formatMoney(item.amount)}</div>` : ""}
-      ${item.notes ? `<div class="notes">${escapeHtml(item.notes)}</div>` : ""}
+      ${cfg.hasChecklist ? renderChecklist(item) : ""}
       ${cfg.hasLinks ? renderLinks(item) : ""}
       <div class="card-actions">
         ${routine && cfg.completeLabel ? `<button class="icon-btn complete" data-complete="${item.id}">${completeLabelFor(item)}</button>` : ""}
@@ -549,10 +605,19 @@ function renderModal() {
 
           ${cfg.priorityStyle === "segmented" ? renderToggle("f-manual-urgent", "Mark as urgent", draft.manual_urgent, "urgent") : ""}
 
-          ${cfg.hasNotes ? `
+          ${cfg.hasChecklist ? `
           <div class="field">
-            <label>${cfg.notesLabel}</label>
-            <textarea id="f-notes" placeholder="any details">${escapeHtml(draft.notes || "")}</textarea>
+            <label>${cfg.checklistLabel}</label>
+            <div class="checklist-rows">
+              ${(draft.checklist || []).map((c, i) => `
+                <div class="checklist-row">
+                  <span class="checklist-num">${i + 1}.</span>
+                  <input type="checkbox" class="checklist-done" ${c.done ? "checked" : ""}>
+                  <input type="text" class="checklist-text" placeholder="item" value="${escapeAttr(c.text || "")}">
+                  <button type="button" class="link-remove" data-removecheck="${i}">&times;</button>
+                </div>`).join("")}
+            </div>
+            <button type="button" class="add-link-btn" id="addChecklistBtn">+ Add item</button>
           </div>` : ""}
 
           ${cfg.hasLinks ? `
@@ -609,6 +674,9 @@ function wireModal() {
   const addLinkBtn = document.getElementById("addLinkBtn");
   if (addLinkBtn) addLinkBtn.addEventListener("click", addLinkRow);
   document.querySelectorAll("[data-removelink]").forEach(btn => btn.addEventListener("click", () => removeLinkRow(Number(btn.dataset.removelink))));
+  const addChecklistBtn = document.getElementById("addChecklistBtn");
+  if (addChecklistBtn) addChecklistBtn.addEventListener("click", addChecklistRow);
+  document.querySelectorAll("[data-removecheck]").forEach(btn => btn.addEventListener("click", () => removeChecklistRow(Number(btn.dataset.removecheck))));
 
   document.getElementById("modalSave").addEventListener("click", () => {
     const get = id => { const el = document.getElementById(id); return el ? el.value : ""; };
@@ -620,7 +688,6 @@ function wireModal() {
       due_date: get("f-due"),
       end_date: get("f-end"),
       recurrence: get("f-recurrence") || "none",
-      notes: get("f-notes"),
       priority: modalState.draft.priority,
       region: modalState.draft.region,
       city: get("f-city"),

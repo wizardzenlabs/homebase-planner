@@ -82,8 +82,11 @@ Deno.serve(async (_req) => {
         const rows = catItems.map((item) => {
           const overdue = item.due_date != null && item.due_date < todayISO;
           const dateLine = item.due_date ? ` — ${formatDate(item.due_date)}` : "";
-          const notesLine = item.notes ? `<br><span style="color:#6b6b6b;font-size:0.85em;">${item.notes}</span>` : "";
-          return `<li>${overdue ? "⚠️ " : ""}<strong>${item.title}</strong>${dateLine}${formatMoney(item.amount)} (${priorityWord(item.priority)} priority)${notesLine}</li>`;
+          const pending = (item.checklist || []).filter((c: { done: boolean }) => !c.done).map((c: { text: string }) => c.text);
+          const checklistLine = pending.length
+            ? `<br><span style="color:#6b6b6b;font-size:0.85em;">${pending.map((t: string) => "• " + t).join("<br>")}</span>`
+            : "";
+          return `<li>${overdue ? "⚠️ " : ""}<strong>${item.title}</strong>${dateLine}${formatMoney(item.amount)} (${priorityWord(item.priority)} priority)${checklistLine}</li>`;
         }).join("");
         return `<h3>${CATEGORY_LABELS[category] ?? category}</h3><ul>${rows}</ul>`;
       }).join("");
