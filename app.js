@@ -44,7 +44,7 @@ const CATEGORIES = [
     id: "thoughts", label: "Random Thoughts", completeLabel: null, completeStatus: null,
     hasAmount: false, amountLabel: "Amount",
     hasDueDate: false, dueDateLabel: "", hasEndDate: false,
-    hasNotes: true, notesLabel: "Notes", hasLinks: false,
+    hasNotes: true, notesLabel: "Notes", hasLinks: true,
     priorityStyle: null, isTravel: false,
     recurrenceOptions: null,
   },
