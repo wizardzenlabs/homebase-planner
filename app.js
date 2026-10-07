@@ -315,7 +315,7 @@ function render() {
   const app = document.getElementById("app");
   app.innerHTML = `
     <div class="topbar">
-      <div class="brand">Calm Mind App</div>
+      <div class="brand"><img src="icon-512.png" alt="" class="brand-icon">Calm Mind App</div>
       <button class="add-btn" id="addBtn">+ Add</button>
     </div>
     ${bannerMsg ? `<div class="banner">${escapeHtml(bannerMsg)}</div>` : ""}
@@ -368,7 +368,10 @@ function renderList() {
   wrap.querySelectorAll("[data-edit]").forEach(btn => btn.addEventListener("click", () => openEditModal(findItem(btn.dataset.edit))));
   wrap.querySelectorAll("[data-delete]").forEach(btn => btn.addEventListener("click", () => handleDelete(findItem(btn.dataset.delete))));
   wrap.querySelectorAll("[data-complete]").forEach(btn => btn.addEventListener("click", () => handleComplete(findItem(btn.dataset.complete))));
-  wrap.querySelectorAll("[data-reopen]").forEach(btn => btn.addEventListener("click", () => handleReopen(findItem(btn.dataset.reopen))));
+  wrap.querySelectorAll("[data-donetoggle]").forEach(cb => cb.addEventListener("change", () => {
+    const item = findItem(cb.dataset.donetoggle);
+    cb.checked ? handleComplete(item) : handleReopen(item);
+  }));
   wrap.querySelectorAll("[data-letsdo]").forEach(btn => btn.addEventListener("click", () => toggleLetsDo(findItem(btn.dataset.letsdo))));
   wrap.querySelectorAll("[data-linktoggle]").forEach(btn => btn.addEventListener("click", () => {
     const id = btn.dataset.linktoggle;
@@ -388,6 +391,20 @@ function renderStars(priority) {
   let out = "";
   for (let i = 1; i <= 5; i++) out += `<span class="star ${i <= priority ? "on" : ""}">★</span>`;
   return `<div class="stars">${out}</div>`;
+}
+
+function renderDoneToggle(item) {
+  const isDoneState = item.status !== "active";
+  const label = item.category === "bills" ? "Paid" : "Done";
+  return `
+    <label class="toggle-row toggle-row--card">
+      <span class="toggle-switch toggle-switch--done">
+        <input type="checkbox" data-donetoggle="${item.id}" ${isDoneState ? "checked" : ""}>
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+      </span>
+      <span>${label}</span>
+    </label>
+  `;
 }
 
 function renderLinks(item) {
@@ -441,8 +458,8 @@ function renderCard(item) {
       ${item.notes ? `<div class="notes">${escapeHtml(item.notes)}</div>` : ""}
       ${cfg.hasLinks ? renderLinks(item) : ""}
       <div class="card-actions">
-        ${!isDone && cfg.completeLabel ? `<button class="icon-btn complete" data-complete="${item.id}">${completeLabelFor(item)}</button>` : ""}
-        ${isDone && cfg.completeLabel ? `<button class="icon-btn" data-reopen="${item.id}">Reopen</button>` : ""}
+        ${routine && cfg.completeLabel ? `<button class="icon-btn complete" data-complete="${item.id}">${completeLabelFor(item)}</button>` : ""}
+        ${!routine && cfg.completeLabel ? renderDoneToggle(item) : ""}
         <button class="icon-btn" data-edit="${item.id}">Edit</button>
         <button class="icon-btn danger" data-delete="${item.id}">Delete</button>
       </div>
